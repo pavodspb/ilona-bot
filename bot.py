@@ -1,52 +1,43 @@
 import os
-import json
 from groq import Groq
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-CONFIG_FILE = "config.json"
-API_KEY_FILE = "Илона.txt"
+API_KEY = os.environ.get("GROQ_API_KEY", "")
+TG_TOKEN = os.environ.get("TG_TOKEN", "")
+
+PROFILE = {
+    "name": os.environ.get("BOT_NAME", "Илона"),
+    "specialization": os.environ.get("BOT_SPEC", "Продажа кухонь"),
+    "company": os.environ.get("BOT_COMPANY", ""),
+    "description": os.environ.get("BOT_DESC", "Помощник по подбору и продаже кухонь"),
+    "greeting": os.environ.get("BOT_GREETING", "Здравствуйте! Я Илона, ваш помощник по выбору кухни."),
+    "tone": os.environ.get("BOT_TONE", "Дружелюбный, профессиональный"),
+}
+
+PRODUCTS = os.environ.get("BOT_PRODUCTS", "Информация не добавлена")
+PRICES = os.environ.get("BOT_PRICES", "Информация не добавлена")
+FAQ = os.environ.get("BOT_FAQ", "Информация не добавлена")
+SKILLS = os.environ.get("BOT_SKILLS", "Консультация")
 
 
-def load_config():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def get_api_key():
-    if os.path.exists(API_KEY_FILE):
-        with open(API_KEY_FILE, "r") as f:
-            return f.read().strip()
-    return os.environ.get("GROQ_API_KEY", "")
-
-
-def build_system_prompt(config):
-    p = config.get("profile", {})
-    k = config.get("knowledge", {})
-    skills = config.get("skills", [])
-
-    products = "\n".join(k.get("products", []))
-    prices = "\n".join(k.get("prices", []))
-    faq = "\n".join(k.get("faq", []))
-
-    return f"""Ты — {p.get('name', 'Ассистент')}, {p.get('specialization', 'специалист')}.
-Компания: {p.get('company', 'Не указана')}
-Описание: {p.get('description', '')}
-Тон общения: {p.get('tone', 'Профессиональный')}
+def build_system_prompt():
+    return f"""Ты — {PROFILE['name']}, {PROFILE['specialization']}.
+Компания: {PROFILE['company'] or 'Не указана'}
+Описание: {PROFILE['description']}
+Тон общения: {PROFILE['tone']}
 
 Твои навыки:
-{chr(10).join('- ' + s for s in skills) if skills else '- Консультация'}
+{SKILLS}
 
 Товары и услуги:
-{products if products else 'Информация не добавлена'}
+{PRODUCTS}
 
 Цены:
-{prices if prices else 'Информация не добавлена'}
+{PRICES}
 
 Частые вопросы:
-{faq if faq else 'Информация не добавлена'}
+{FAQ}
 
 Правила:
 - Отвечай на русском
@@ -56,26 +47,19 @@ def build_system_prompt(config):
 - Отвечай кратко и по делу"""
 
 
-config = load_config()
-API_KEY = get_api_key()
-SYSTEM_PROMPT = build_system_prompt(config)
-
-
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    p = config.get("profile", {})
-    greeting = p.get("greeting", "Здравствуйте! Чем могу помочь?")
-    await update.message.reply_text(greeting)
+    await update.message.reply_text(PROFILE["greeting"])
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
 
     if not API_KEY:
-        await update.message.reply_text("Сервис временно недоступен. Попробуйте позже.")
+        await update.message.reply_text("Сервис временно недоступен.")
         return
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": build_system_prompt()},
         {"role": "user", "content": user_text}
     ]
 
@@ -94,12 +78,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    token = config.get("telegram", {}).get("token", "")
-    if not token:
-        print("Нет токена Telegram бота!")
+    if not TG_TOKEN:
+        print("Нет токена Telegram!")
+        return
+    if not API_KEY:
+        print("Нет ключа Groq!")
         return
 
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(TG_TOKEN).build()
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
