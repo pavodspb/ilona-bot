@@ -2,6 +2,7 @@ import os
 from groq import Groq
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from kitchen_calc import KitchenCalc
 
 API_KEY = os.environ.get("GROQ_API_KEY", "")
 TG_TOKEN = os.environ.get("TG_TOKEN", "")
@@ -19,6 +20,8 @@ PRODUCTS = os.environ.get("BOT_PRODUCTS", "Информация не добав�
 PRICES = os.environ.get("BOT_PRICES", "Информация не добавлена")
 FAQ = os.environ.get("BOT_FAQ", "Информация не добавлена")
 SKILLS = os.environ.get("BOT_SKILLS", "Консультация")
+
+user_calcs = {}
 
 
 def build_system_prompt():
@@ -44,15 +47,41 @@ def build_system_prompt():
 - Будь вежливой и helpful
 - Если не знаешь ответ — скажи что уточнишь у специалиста
 - Не выдумывай информацию, которой нет в базе
-- Отвечай кратко и по делу"""
+- Отвечай кратко и по делу
+- Если просят рассчитать кухню — предложи калькулятор: /calc"""
 
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(PROFILE["greeting"])
 
 
+async def calc_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_calcs[user_id] = KitchenCalc()
+    question = user_calcs[user_id].get_question()
+    await update.message.reply_text(f"Калькулятор кухни\n\n{question}")
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_text = update.message.text
+    user_id = update.effective_user.id
+    user_text = update.message.text.strip()
+
+    if user_id in user_calcs:
+        calc = user_calcs[user_id]
+        response = calc.process_answer(user_text)
+
+        if response:
+            await update.message.reply_text(response)
+        elif calc.step >= len(calc.data):
+            result = calc.calculate()
+            await update.message.reply_text(result)
+            del user_calcs[user_id]
+            await update.message.reply_text("Хотите сделать еще расчет? /calc\nИли задайте вопрос!")
+        else:
+            question = calc.get_question()
+            if question:
+                await update.message.reply_text(question)
+        return
 
     if not API_KEY:
         await update.message.reply_text("Сервис временно недоступен.")
@@ -87,6 +116,7 @@ def main():
 
     app = Application.builder().token(TG_TOKEN).build()
     app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("calc", calc_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Бот запущен!")
