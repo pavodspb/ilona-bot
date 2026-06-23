@@ -22,38 +22,6 @@ PRICE = {
     "Пенал_Эмаль": 35000
 }
 
-STEPS = [
-    "type",
-    "wall_a",
-    "wall_b",
-    "fridge",
-    "antresol_fridge",
-    "height",
-    "antresols",
-    "material",
-    "wall_panel",
-    "penals",
-    "antresol_penals"
-]
-
-QUESTIONS = {
-    "type": "Выберите тип кухни:\n1. Прямая\n2. Угловая\n\nОтветьте: 1 или 2",
-    "wall_a": "Введите длину стены А в мм (например: 2400):",
-    "wall_b": "Введите длину стены Б в мм (например: 1800):",
-    "fridge": "Холодильник входит в размеры кухни?\n1. Да\n2. Нет",
-    "antresol_fridge": "Установить антресоль над холодильником?\n1. Да\n2. Нет",
-    "height": "Выберите высоту верхних модулей:\n1. 716 мм\n2. 916 мм\n3. 1016 мм",
-    "antresols": "Установить антресоли над верхними шкафами?\n1. Да\n2. Нет",
-    "material": "Выберите материал фасадов:\n1. ЛДСП\n2. МДФ-ПВХ\n3. МДФ-AGT\n4. МДФ-Эмаль",
-    "wall_panel": "Установить стеновую панель (фартук)?\n1. Да\n2. Нет",
-    "penals": "Выберите пеналы (через запятую):\n1. Холодильник\n2. Техника\n3. Продукты\n\nПример: 1,3 или просто 0 если нет",
-    "antresol_penals": "Антресоли над пеналами (через запятую):\n1. Холодильник\n2. Техника\n3. Продукты\n\nПример: 1 или 0 если нет"
-}
-
-HEIGHTS = {"1": 716, "2": 916, "3": 1016}
-MATERIALS = {"1": "ЛДСП", "2": "ПВХ", "3": "AGT", "4": "Эмаль"}
-PENAL_NAMES = {"1": "холодильник", "2": "техника", "3": "продукты"}
-
 
 class KitchenCalc:
     def __init__(self):
@@ -74,94 +42,6 @@ class KitchenCalc:
             "penals": [],
             "antresol_penals": []
         }
-
-    def get_question(self):
-        if self.step >= len(STEPS):
-            return None
-        key = STEPS[self.step]
-        return QUESTIONS[key]
-
-    def process_answer(self, answer):
-        key = STEPS[self.step]
-        answer = answer.strip()
-
-        try:
-            if key == "type":
-                if answer not in ("1", "2"):
-                    return "Пожалуйста, выберите 1 или 2"
-                self.data["type"] = "прямая" if answer == "1" else "угловая"
-
-            elif key == "wall_a":
-                val = int(answer)
-                if val <= 0:
-                    return "Длина должна быть положительным числом"
-                self.data["wall_a"] = val
-
-            elif key == "wall_b":
-                if self.data["type"] != "угловая":
-                    self.step += 1
-                    return self.get_question()
-                val = int(answer)
-                if val <= 0:
-                    return "Длина должна быть положительным числом"
-                self.data["wall_b"] = val
-
-            elif key == "fridge":
-                if answer not in ("1", "2"):
-                    return "Пожалуйста, выберите 1 или 2"
-                self.data["fridge"] = answer == "1"
-
-            elif key == "antresol_fridge":
-                if answer not in ("1", "2"):
-                    return "Пожалуйста, выберите 1 или 2"
-                self.data["antresol_fridge"] = answer == "1"
-
-            elif key == "height":
-                if answer not in HEIGHTS:
-                    return "Пожалуйста, выберите 1, 2 или 3"
-                self.data["height"] = HEIGHTS[answer]
-
-            elif key == "antresols":
-                if answer not in ("1", "2"):
-                    return "Пожалуйста, выберите 1 или 2"
-                self.data["antresols"] = answer == "1"
-
-            elif key == "material":
-                if answer not in MATERIALS:
-                    return "Пожалуйста, выберите от 1 до 4"
-                self.data["material"] = MATERIALS[answer]
-
-            elif key == "wall_panel":
-                if answer not in ("1", "2"):
-                    return "Пожалуйста, выберите 1 или 2"
-                self.data["wall_panel"] = answer == "1"
-
-            elif key == "penals":
-                if answer == "0":
-                    self.data["penals"] = []
-                else:
-                    nums = [x.strip() for x in answer.split(",")]
-                    self.data["penals"] = [PENAL_NAMES[n] for n in nums if n in PENAL_NAMES]
-
-            elif key == "antresol_penals":
-                if answer == "0":
-                    self.data["antresol_penals"] = []
-                else:
-                    nums = [x.strip() for x in answer.split(",")]
-                    self.data["antresol_penals"] = [PENAL_NAMES[n] for n in nums if n in PENAL_NAMES]
-
-            self.step += 1
-            if self.step < len(STEPS):
-                key_next = STEPS[self.step]
-                if key_next == "wall_b" and self.data["type"] != "угловая":
-                    self.step += 1
-                if self.step < len(STEPS):
-                    return QUESTIONS[STEPS[self.step]]
-
-            return None
-
-        except (ValueError, KeyError):
-            return "Некорректный ввод. Попробуйте ещё раз."
 
     def calculate(self):
         d = self.data
